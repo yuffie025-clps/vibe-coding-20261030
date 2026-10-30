@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#06162c" />
+  <meta name="description" content="霓虹藍扁平科技風碼錶，支援開始、暫停、繼續、停止與重設。" />
+  <title>NEON STOPWATCH｜科技感碼錶計時器</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f0f8ff;
+      --cyan: #11dfff;
+      --blue: #0089ff;
+      --deep: #06162c;
+      --mute: #6993bd;
+      --radius: clamp(30px, 6.2vw, 72px);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body {
+      min-height: 100svh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(14px, 3vmin, 32px);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 35%, #103e74 0%, #092449 37%, #04142a 80%, #020d1c 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 44%, transparent 15%, #00061360 90%);
+    }
+    .stopwatch {
+      position: relative;
+      isolation: isolate;
+      width: min(710px, 93vw, 69.5svh);
+      aspect-ratio: 3 / 4;
+      min-width: 250px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: space-between;
+      padding: 8.7% 7% 9.4%;
+      border: clamp(2px, .45vw, 4px) solid transparent;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(147deg, #3c638a 0%, #193758 28%, #152f4f 64%, #244669 100%) padding-box,
+        linear-gradient(155deg, #62d8ff 0%, #3b93ee 36%, #006ad9 72%, #237bf2 100%) border-box;
+      box-shadow:
+        0 30px 90px #000c1ecc,
+        inset 0 0 35px #a8d9ff10,
+        0 0 36px #1286e119;
+    }
+    .stopwatch::before {
+      position: absolute;
+      content: "";
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, #ffffff0b, transparent 28%, transparent 70%, #00a5ff0a);
+      pointer-events: none;
+      z-index: -1;
+    }
+    .screen {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1.15;
+      display: grid;
+      place-items: center;
+      border: clamp(1px, .26vw, 2.5px) solid #368cdb;
+      border-radius: clamp(21px, 5.2vw, 64px);
+      background:
+        radial-gradient(circle at 51% 54%, #082a50 0%, #061e3c 43%, #03152c 80%, #031124 100%);
+      box-shadow: inset 0 0 26px #000b1e, 0 0 0 1px #000c1b90;
+      overflow: hidden;
+    }
+    .screen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at 50% 52%, #148dfe08 0%, transparent 64%);
+    }
+    .dial {
+      position: relative;
+      width: 86%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      container-type: inline-size;
+    }
+    .dial svg {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    #ticks line {
+      stroke: #315987;
+      stroke-width: 5.2;
+      stroke-linecap: round;
+      opacity: .86;
+      transition: stroke 130ms ease, opacity 130ms ease;
+    }
+    #ticks line.lit { stroke: #078ef3; opacity: 1; }
+    .track {
+      fill: none;
+      stroke: #144572;
+      stroke-width: 12;
+      opacity: .14;
+    }
+    .progress-halo {
+      fill: none;
+      stroke: #009bff;
+      stroke-width: 22;
+      stroke-linecap: round;
+      opacity: .38;
+      filter: url(#soft-glow);
+      transform: rotate(-90deg);
+      transform-origin: 300px 300px;
+    }
+    .progress {
+      fill: none;
+      stroke: url(#arc-gradient);
+      stroke-width: 14;
+      stroke-linecap: round;
+      transform: rotate(-90deg);
+      transform-origin: 300px 300px;
+      filter: drop-shadow(0 0 6px #00a5ff);
+    }
+    .light-dot {
+      fill: #eaffff;
+      filter: drop-shadow(0 0 9px #01deff) drop-shadow(0 0 17px #0488ff);
+    }
+    .beam { fill: url(#beam-gradient); }
+    .readout {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(7px, 1.5cqw, 14px);
+      transform: translateY(-2%);
+      pointer-events: none;
+    }
+    .time {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      white-space: nowrap;
+      font-family: "Segoe UI", Inter, Arial, sans-serif;
+      font-variant-numeric: tabular-nums lining-nums;
+      font-feature-settings: "tnum";
+      font-weight: 700;
+      letter-spacing: -.075em;
+      line-height: 1.15;
+      text-shadow: 0 0 16px #d1ecff26;
+      font-size: clamp(2rem, 16cqw, 7.1rem);
+    }
+    .time .main { color: #edf6ff; }
+    .time .dot { color: #cfecff; margin-left: .02em; }
+    .time .fraction {
+      color: #09cafa;
+      font-size: .67em;
+      letter-spacing: -.06em;
+      text-shadow: 0 0 18px #04baff35;
+    }
+    .status {
+      color: #6d9cc6;
+      font-size: clamp(.65rem, 2.55cqw, .95rem);
+      font-weight: 600;
+      letter-spacing: .22em;
+      text-indent: .22em;
+      transition: color .2s;
+    }
+    .stopwatch[data-mode="running"] .status { color: #29dcf7; }
+    .stopwatch[data-mode="paused"] .status { color: #c6d8ef; }
+    .stopwatch[data-mode="stopped"] .status { color: #ff8a9c; }
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5.2%;
+      width: 100%;
+    }
+    button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      font: inherit;
+      user-select: none;
+    }
+    .control {
+      position: relative;
+      width: 29.8%;
+      aspect-ratio: 1;
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(5px, 1.25vw, 14px);
+      padding: 0;
+      border-radius: 50%;
+      border: clamp(2px, .37vw, 4px) solid #365f8e;
+      background: linear-gradient(145deg, #2e4b6c, #172b47 78%);
+      color: #edf6ff;
+      box-shadow: 0 0 0 clamp(3px, .5vw, 5px) #04172b90, inset 0 0 14px #05122570;
+      cursor: pointer;
+      transition: transform .16s ease, filter .2s, opacity .2s, box-shadow .2s;
+    }
+    .control:not(:disabled):hover { transform: translateY(-3px); filter: brightness(1.17); }
+    .control:not(:disabled):active { transform: translateY(1px) scale(.975); }
+    .control:focus-visible { outline: 3px solid white; outline-offset: 7px; }
+    .control:disabled { cursor: not-allowed; opacity: .42; filter: saturate(.55); }
+    .control svg { width: 29%; height: 29%; flex: none; overflow: visible; }
+    .control .label {
+      font-size: clamp(.85rem, 2.55vw, 1.65rem);
+      letter-spacing: .04em;
+      font-weight: 700;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .control--stop {
+      border-color: #a14573;
+      background: radial-gradient(circle at 50% 12%, #56334f, #272b48 68%, #1b2a45);
+    }
+    .control--stop .stop-square {
+      width: 28%; height: 28%; border-radius: 13%;
+      background: linear-gradient(145deg, #ff7a85, #fc3d5a);
+      box-shadow: 0 0 19px #ff537a78;
+    }
+    .control--primary {
+      border-color: var(--cyan);
+      background: radial-gradient(circle at 45% 7%, #078eff 0%, #075bd7 55%, #063d9d 95%);
+      box-shadow: 0 0 0 clamp(3px, .48vw, 5px) #053053, 0 0 20px #00bafc65, inset 0 0 16px #0051bd;
+    }
+    .control--primary svg { fill: #f7fbff; stroke: #f7fbff; }
+    .control--primary:hover { box-shadow: 0 0 0 4px #053053, 0 0 29px #00bafc9d; }
+    .control--primary .label { font-size: clamp(.8rem, 2.32vw, 1.54rem); }
+    .icon-reset { width: 30% !important; }
+    .visually-hidden {
+      position:absolute; width:1px; height:1px; overflow:hidden;
+      clip:rect(0 0 0 0); white-space:nowrap; clip-path:inset(50%);
+    }
+    @media (max-width: 420px) {
+      body { padding: 10px; }
+      .stopwatch { width: min(96vw, 69.5svh); }
+      .control .label { font-size: clamp(.76rem, 3.5vw, 1rem); }
+      .control--primary .label { font-size: clamp(.75rem, 3.3vw, .95rem); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stopwatch" id="stopwatch" data-mode="idle" aria-label="碼錶計時器">
+    <section class="screen" aria-label="計時器顯示區">
+      <div class="dial">
+        <svg viewBox="0 0 600 600" role="presentation" aria-hidden="true">
+          <defs>
+            <linearGradient id="arc-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#029dff" />
+              <stop offset=".55" stop-color="#09cbff" />
+              <stop offset="1" stop-color="#36f4ff" />
+            </linearGradient>
+            <radialGradient id="beam-gradient" cx=".5" cy=".5" r=".7">
+              <stop offset="0" stop-color="#0170ed" stop-opacity=".04" />
+              <stop offset=".88" stop-color="#0879e9" stop-opacity=".18" />
+              <stop offset="1" stop-color="#0594ff" stop-opacity=".32" />
+            </radialGradient>
+            <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="11" />
+            </filter>
+          </defs>
+          <g id="ticks"></g>
+          <circle class="track" cx="300" cy="300" r="238" />
+          <path class="beam" id="beam" d="" />
+          <circle class="progress-halo" id="progress-halo" cx="300" cy="300" r="238" />
+          <circle class="progress" id="progress" cx="300" cy="300" r="238" />
+          <circle class="light-dot" id="light-dot" cx="300" cy="62" r="10" />
+        </svg>
+        <div class="readout">
+          <div class="time" role="timer" aria-label="經過時間">
+            <span class="main" id="time-main">00:00</span><span class="dot">.</span><span class="fraction" id="time-fraction">00</span>
+          </div>
+          <div class="status" id="status-text" aria-live="polite">準備開始</div>
+        </div>
+      </div>
+    </section>
+    <div class="controls" role="group" aria-label="碼錶控制按鈕">
+      <button class="control control--reset" id="reset-button" type="button" aria-label="重設碼錶" disabled>
+        <svg class="icon-reset" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 18a17 17 0 1 1 1 17" />
+          <path d="M10 6v12h12" />
+        </svg>
+        <span class="label">重設</span>
+      </button>
+      <button class="control control--stop" id="stop-button" type="button" aria-label="停止碼錶" disabled>
+        <span class="stop-square" aria-hidden="true"></span>
+        <span class="label">停止</span>
+      </button>
+      <button class="control control--primary" id="toggle-button" type="button" aria-label="開始計時">
+        <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M17 11v26l22-13z" stroke-width="2.5" stroke-linejoin="round" />
+        </svg>
+        <span class="label" id="toggle-label">開始</span>
+      </button>
+    </div>
+    <p class="visually-hidden">快捷鍵：空白鍵可開始、暫停或繼續，R 鍵可重設，S 鍵可停止。</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const root = document.getElementById('stopwatch');
+      const mainTime = document.getElementById('time-main');
+      const fractionTime = document.getElementById('time-fraction');
+      const status = document.getElementById('status-text');
+      const resetButton = document.getElementById('reset-button');
+      const stopButton = document.getElementById('stop-button');
+      const toggleButton = document.getElementById('toggle-button');
+      const toggleLabel = document.getElementById('toggle-label');
+      const toggleIcon = document.getElementById('toggle-icon');
+      const tickGroup = document.getElementById('ticks');
+      const arc = document.getElementById('progress');
+      const halo = document.getElementById('progress-halo');
+      const dot = document.getElementById('light-dot');
+      const beam = document.getElementById('beam');
+
+      const NS = 'http://www.w3.org/2000/svg';
+      const RADIUS = 238;
+      const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+      const TICK_COUNT = 80;
+      const ticks = [];
+      let mode = 'idle'; // idle -> running -> paused -> running; running/paused -> stopped
+      let accumulatedMs = 0;
+      let startedAt = 0;
+      let animationFrame = null;
+      let lastCentisecond = -1;
+
+      const pad = (n) => String(n).padStart(2, '0');
+      const position = (degrees, radius) => {
+        const rad = degrees * Math.PI / 180;
+        return { x: 300 + Math.cos(rad) * radius, y: 300 + Math.sin(rad) * radius };
+      };
+
+      for (let i = 0; i < TICK_COUNT; i++) {
+        const degrees = -90 + i * 360 / TICK_COUNT;
+        const inner = position(degrees, 260);
+        const outer = position(degrees, 273);
+        const line = document.createElementNS(NS, 'line');
+        for (const [k, v] of Object.entries({ x1: inner.x, y1: inner.y, x2: outer.x, y2: outer.y })) line.setAttribute(k, v);
+        tickGroup.appendChild(line);
+        ticks.push(line);
+      }
+      for (const el of [arc, halo]) {
+        el.style.strokeDasharray = String(CIRCUMFERENCE);
+        el.style.strokeDashoffset = String(CIRCUMFERENCE);
+      }
+
+      const elapsed = () => accumulatedMs + (mode === 'running' ? performance.now() - startedAt : 0);
+
+      function render(ms) {
+        ms = Math.max(0, ms);
+        const centiseconds = Math.floor(ms / 10);
+        if (centiseconds !== lastCentisecond) {
+          const totalSec = Math.floor(centiseconds / 100);
+          const hours = Math.floor(totalSec / 3600);
+          const minutes = Math.floor(totalSec / 60) % 60;
+          const seconds = totalSec % 60;
+          mainTime.textContent = hours ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+          fractionTime.textContent = pad(centiseconds % 100);
+          lastCentisecond = centiseconds;
+        }
+        // 60 秒走完一圈；超過一分鐘開始下一圈。
+        const fraction = (ms % 60000) / 60000;
+        const visualProgress = Math.max(fraction, mode === 'idle' ? 0 : 0.001);
+        const offset = CIRCUMFERENCE * (1 - visualProgress);
+        arc.style.strokeDashoffset = String(offset);
+        halo.style.strokeDashoffset = String(offset);
+        const degrees = -90 + fraction * 360;
+        const tip = position(degrees, RADIUS);
+        dot.setAttribute('cx', String(tip.x));
+        dot.setAttribute('cy', String(tip.y));
+        const left = position(degrees - 13, RADIUS);
+        const right = position(degrees + 13, RADIUS);
+        beam.setAttribute('d', `M300,300 L${left.x},${left.y} A${RADIUS},${RADIUS} 0 0 1 ${right.x},${right.y} Z`);
+        ticks.forEach((tick, index) => tick.classList.toggle('lit', fraction > 0 && index / TICK_COUNT <= fraction));
+      }
+
+      function cancelTick() {
+        if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      function tick() {
+        if (mode !== 'running') return;
+        render(elapsed());
+        animationFrame = requestAnimationFrame(tick);
+      }
+      function updateControls() {
+        root.dataset.mode = mode;
+        resetButton.disabled = mode === 'idle';
+        stopButton.disabled = mode === 'idle' || mode === 'stopped';
+        const next = mode === 'running' ? '暫停' : mode === 'paused' ? '繼續' : '開始';
+        toggleLabel.textContent = next;
+        toggleButton.setAttribute('aria-label', `${next}計時`);
+        if (mode === 'running') {
+          toggleIcon.innerHTML = '<rect x="11" y="10" width="9" height="28" rx="2.5"/><rect x="28" y="10" width="9" height="28" rx="2.5"/>';
+        } else {
+          toggleIcon.innerHTML = '<path d="M17 11v26l22-13z" stroke-width="2.5" stroke-linejoin="round"/>';
+        }
+        status.textContent = ({ idle: '準備開始', running: '計時中', paused: '已暫停', stopped: '已停止' })[mode];
+      }
+      function start() {
+        if (mode === 'stopped') {
+          // 停止後按「開始」代表開啟新的一次計時。
+          accumulatedMs = 0;
+          lastCentisecond = -1;
+        }
+        startedAt = performance.now();
+        mode = 'running';
+        updateControls();
+        cancelTick();
+        tick();
+      }
+      function pause() {
+        if (mode !== 'running') return;
+        accumulatedMs = elapsed();
+        mode = 'paused';
+        cancelTick();
+        render(accumulatedMs);
+        updateControls();
+      }
+      function stop() {
+        if (mode !== 'running' && mode !== 'paused') return;
+        accumulatedMs = elapsed();
+        mode = 'stopped';
+        cancelTick();
+        render(accumulatedMs);
+        updateControls();
+      }
+      function reset() {
+        if (mode === 'idle') return;
+        cancelTick();
+        accumulatedMs = 0;
+        startedAt = 0;
+        mode = 'idle';
+        lastCentisecond = -1;
+        render(0);
+        updateControls();
+      }
+      toggleButton.addEventListener('click', () => mode === 'running' ? pause() : start());
+      resetButton.addEventListener('click', reset);
+      stopButton.addEventListener('click', stop);
+      document.addEventListener('keydown', (event) => {
+        if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+        if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+        if (event.code === 'Space') {
+          // 按鈕取得焦點時，讓瀏覽器處理 Space，避免按一次觸發兩次。
+          if (document.activeElement instanceof HTMLButtonElement) return;
+          event.preventDefault();
+          mode === 'running' ? pause() : start();
+        } else if (event.key.toLowerCase() === 'r') {
+          reset();
+        } else if (event.key.toLowerCase() === 's') {
+          stop();
+        }
+      });
+      render(0);
+      updateControls();
+    })();
+  </script>
+</body>
+</html>
